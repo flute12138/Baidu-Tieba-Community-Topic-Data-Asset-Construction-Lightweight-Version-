@@ -1,44 +1,46 @@
-# 🏗️ Baidu-Tieba-Community-Topic-Data-Asset-Construction-Lightweight-Version
+🏗️ Baidu-Tieba-Community-Topic-Data-Asset-Construction (轻量版)
 
-**百度贴吧社区主题数据资产建设（轻量版）**
+百度贴吧社区主题数据资产建设项目（轻量可运行版）
 
----
+📘 一、项目简介
 
-## 🧩 一、项目总体结构与环境规划
+该项目模拟“百度贴吧”社区论坛主题数据资产建设的完整流程，
+从 数据采集 → 清洗 → 汇总 → 应用层分析 → 结果导出，
+旨在展示轻量级数仓的构建与指标体系搭建过程。
 
-### 📁 项目目录结构（建议直接新建如下文件夹）
-```bash
+可在个人 Hadoop + Hive 环境中一键运行。
+
+📁 二、项目目录结构
 /root/baidu_tieba_dw/
 │
-├── data/                      # 模拟源数据（Python生成）
-│   ├── gen_data.py
+├── data/                      # 模拟原始数据
+│   ├── gen_data.py            # 生成样例CSV数据
 │   ├── user_info.csv
 │   ├── post_info.csv
 │   └── comment_info.csv
 │
-├── scripts/                   # 数据导入与Hive脚本
-│   ├── load_to_hdfs.sh
-│   ├── hive_create_all.sql
-│   ├── hive_dwd_clean.sql
-│   ├── hive_dws_summary.sql
-│   ├── hive_ads_analysis.sql
+├── scripts/                   # Hive & Shell脚本
+│   ├── load_to_hdfs.sh        # 上传数据至HDFS
+│   ├── hive_create_all.sql    # 建立ODS层表
+│   ├── hive_dwd_clean.sql     # 清洗并生成DWD层
+│   ├── hive_dws_summary.sql   # 汇总生成DWS层
+│   ├── hive_ads_analysis.sql  # 输出ADS层指标
 │
 └── README.txt
 
-📌 创建命令
+
+📌 创建命令：
+
 mkdir -p ~/baidu_tieba_dw/{data,scripts}
 cd ~/baidu_tieba_dw
 
-⚙️ 二、环境准备
-项目	要求	检查命令
-Hadoop	已安装并运行	hadoop version
+⚙️ 三、环境要求
+组件	要求版本	检查命令
+Hadoop	3.x	hadoop version
 HDFS	已启动	hdfs dfs -ls /
-Hive	已配置元数据库并启动	hive --version
-Python	3.7+	python3 --version
-🧱 三、数据生成（data/gen_data.py）
-
-文件路径： ~/baidu_tieba_dw/data/gen_data.py
-
+Hive	3.x	hive --version
+Python	≥3.7	python3 --version
+🧱 四、数据生成（~/baidu_tieba_dw/data/gen_data.py）
 import random, csv
 from datetime import datetime, timedelta
 
@@ -81,22 +83,19 @@ with open("comment_info.csv", "w", newline="", encoding="utf-8") as f:
         ])
 
 
-📌 运行命令
+📌 运行命令：
 
 cd ~/baidu_tieba_dw/data
 python3 gen_data.py
 
 
-✅ 生成文件
+✅ 生成文件：
 
 user_info.csv
 post_info.csv
 comment_info.csv
 
-🚚 四、数据导入（scripts/load_to_hdfs.sh）
-
-文件路径： ~/baidu_tieba_dw/scripts/load_to_hdfs.sh
-
+🚚 五、数据导入（~/baidu_tieba_dw/scripts/load_to_hdfs.sh）
 #!/bin/bash
 
 # 创建HDFS目录
@@ -110,20 +109,17 @@ hdfs dfs -put -f ../data/post_info.csv /data/ods/baidu_tieba/post_info/
 hdfs dfs -put -f ../data/comment_info.csv /data/ods/baidu_tieba/comment_info/
 
 
-📌 运行命令
+📌 运行命令：
 
 cd ~/baidu_tieba_dw/scripts
 bash load_to_hdfs.sh
 
 
-✅ 检查是否上传成功
+✅ 验证上传：
 
 hdfs dfs -ls /data/ods/baidu_tieba/user_info/
 
-🧮 五、ODS 层（Hive 原始层）
-
-文件路径： ~/baidu_tieba_dw/scripts/hive_create_all.sql
-
+🧮 六、ODS 层（~/baidu_tieba_dw/scripts/hive_create_all.sql）
 -- 用户表
 CREATE EXTERNAL TABLE IF NOT EXISTS ods_user_info (
   user_id STRING,
@@ -158,20 +154,17 @@ ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
 LOCATION '/data/ods/baidu_tieba/comment_info/';
 
 
-📌 执行命令
+📌 执行命令：
 
 hive -f ~/baidu_tieba_dw/scripts/hive_create_all.sql
 
 
-✅ 检查
+✅ 检查：
 
 SHOW TABLES LIKE 'ods_%';
 SELECT * FROM ods_post_info LIMIT 5;
 
-🧹 六、DWD 清洗层
-
-文件路径： ~/baidu_tieba_dw/scripts/hive_dwd_clean.sql
-
+🧹 七、DWD 清洗层（~/baidu_tieba_dw/scripts/hive_dwd_clean.sql）
 -- 清洗帖子表
 CREATE TABLE dwd_post_detail AS
 SELECT
@@ -206,20 +199,17 @@ FROM ods_user_info
 WHERE user_id IS NOT NULL;
 
 
-📌 执行命令
+📌 执行命令：
 
 hive -f ~/baidu_tieba_dw/scripts/hive_dwd_clean.sql
 
 
-✅ 检查
+✅ 检查：
 
 SHOW TABLES LIKE 'dwd_%';
 SELECT COUNT(*) FROM dwd_comment_detail;
 
-📊 七、DWS 汇总层
-
-文件路径： ~/baidu_tieba_dw/scripts/hive_dws_summary.sql
-
+📊 八、DWS 汇总层（~/baidu_tieba_dw/scripts/hive_dws_summary.sql）
 -- 用户活跃指标
 CREATE TABLE dws_user_active AS
 SELECT
@@ -250,19 +240,16 @@ WHERE create_time >= date_sub(current_date(),30)
 GROUP BY date_format(create_time,'yyyy-MM-dd');
 
 
-📌 执行命令
+📌 执行命令：
 
 hive -f ~/baidu_tieba_dw/scripts/hive_dws_summary.sql
 
 
-✅ 检查
+✅ 检查：
 
 SELECT * FROM dws_forum_hot_rank;
 
-🧠 八、ADS 应用层（分析结果）
-
-文件路径： ~/baidu_tieba_dw/scripts/hive_ads_analysis.sql
-
+🧠 九、ADS 应用层（~/baidu_tieba_dw/scripts/hive_ads_analysis.sql）
 -- 用户分层标签
 CREATE TABLE ads_user_tag AS
 SELECT
@@ -296,50 +283,37 @@ SELECT
 FROM dws_forum_hot_rank;
 
 
-📌 执行命令
+📌 执行命令：
 
 hive -f ~/baidu_tieba_dw/scripts/hive_ads_analysis.sql
 
 
-✅ 检查
+✅ 检查：
 
 SELECT * FROM ads_user_tag LIMIT 10;
 SELECT * FROM ads_hot_post LIMIT 10;
 SELECT * FROM ads_forum_rank LIMIT 10;
 
-📤 九、结果导出（可选）
+📤 十、结果导出
 hive -e "SELECT * FROM ads_hot_post;" > ~/baidu_tieba_dw/hot_post_result.csv
 
-🧭 十、执行顺序一览表
-阶段	文件/命令	说明
-1️⃣ 数据生成	python3 gen_data.py	生成CSV数据
-2️⃣ 上传到HDFS	bash load_to_hdfs.sh	导入HDFS
-3️⃣ 建ODS表	hive -f hive_create_all.sql	外部表映射原始数据
-4️⃣ 清洗到DWD	hive -f hive_dwd_clean.sql	清洗、去噪、规范化
-5️⃣ 汇总到DWS	hive -f hive_dws_summary.sql	汇总层指标计算
-6️⃣ 输出到ADS	hive -f hive_ads_analysis.sql	用户标签、热帖榜、贴吧排行
-7️⃣ 导出结果	hive -e ... > xxx.csv	输出为CSV
-🧾 十一、README.txt 建议内容
-项目名称：百度贴吧社区主题数据资产建设（轻量版）
-环境要求：Hadoop 3.x + Hive 3.x + Python 3.7+
-
-执行顺序：
-1. cd data && python3 gen_data.py
-2. cd scripts && bash load_to_hdfs.sh
-3. hive -f hive_create_all.sql
-4. hive -f hive_dwd_clean.sql
-5. hive -f hive_dws_summary.sql
-6. hive -f hive_ads_analysis.sql
-7. hive -e "SELECT * FROM ads_hot_post;" > hot_post_result.csv
-
-最终输出结果：
-- 用户分层标签：ads_user_tag
-- 热帖榜Top10：ads_hot_post
-- 贴吧活跃度排行：ads_forum_rank
-
-💡 十二、附加建议
-场景	推荐动作
-结果可视化	将ADS层表导入 Superset / FineBI
-数据量增大	替换为 ORC/Parquet 格式
-自动化调度	后期可接入 Airflow / Azkaban
+🚀 十一、执行顺序总结表
+阶段	命令 / 文件	说明
+1️⃣	python3 gen_data.py	生成模拟CSV数据
+2️⃣	bash load_to_hdfs.sh	导入HDFS
+3️⃣	hive -f hive_create_all.sql	建立ODS层外部表
+4️⃣	hive -f hive_dwd_clean.sql	数据清洗与标准化
+5️⃣	hive -f hive_dws_summary.sql	汇总与指标统计
+6️⃣	hive -f hive_ads_analysis.sql	生成应用层分析结果
+7️⃣	hive -e ... > csv	导出结果为CSV文件
+📈 十二、最终输出结果
+表名	内容说明
+ads_user_tag	用户分层标签
+ads_hot_post	热帖榜Top10
+ads_forum_rank	各贴吧活跃度排行
+💡 十三、后续扩展建议
+场景	建议
+可视化展示	可导入 Superset / FineBI 实现 BI 展示
+数据量扩大	转为 ORC/Parquet 格式
+自动化调度	可引入 Airflow / Azkaban 实现调度
 学习拓展	增加“用户留存分析”“帖子生命周期分析”等模块
